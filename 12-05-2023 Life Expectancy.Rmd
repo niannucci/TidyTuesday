@@ -6,27 +6,115 @@ date: "2023-12-04"
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE)
 ```
 
 
-
-```{r}
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 library(tidyverse) # For Everything Data
 library(tidytuesdayR) # To get the Data
 library(sysfonts) # Fonts
 library(glue) # Images
 library(ggtext) # Text
 library(showtext) # Fonts
+library(ggthemes) # Themes
+library(scales) # Number of decimal points on axes
 ```
 
 
-```{r}
+```{r message=FALSE, warning=FALSE, include=FALSE}
 data <- tt_load("2023-12-05") 
 
 life_expectancy <- data$life_expectancy
 life_expectancy_diff_ages <- data$life_expectancy_different_ages
 life_expectancy_female_male <- data$life_expectancy_female_male
 
+#distribution_life_exp <- hist(life_expectancy$LifeExpectancy)
+#view_distrib <- plot(life_expectancy$Year, life_expectancy$LifeExpectancy)
+
+avg_life_exp_allyears <- life_expectancy %>%
+  group_by(Entity) %>%
+  summarise(mean_life_expectancy = mean(LifeExpectancy))
+
+topcountries <- top_n(avg_life_exp_allyears, 10, wt=avg_life_exp_allyears$mean_life_expectancy)
+
+combined <- full_join(life_expectancy, life_expectancy_diff_ages)
+all <- full_join(combined, life_expectancy_female_male)
+
+avg_life_exp_allcountries <- all %>%
+  filter(is.na(LifeExpectancy ) == FALSE) %>%
+  group_by(Year) %>%
+  summarise(mean_life_expectancy = mean(LifeExpectancy))
+
+topyears <- arrange(top_n(avg_life_exp_allcountries, 10), desc(mean_life_expectancy))
+#arrange(avg_life_exp_allcountries, desc(mean_life_expectancy))
+
+mean2020 <- all %>%
+  filter(Year == 2020) %>%
+  summarise(mean = mean(LifeExpectancy))
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+countries_top_life_expect_graph <- ggplot(data = topcountries, aes(x = Entity, y = mean_life_expectancy)) +
+  geom_point()
+
+years_top_life_expect_graph <- ggplot(data = topyears, aes(x = Year, y = mean_life_expectancy)) +
+  geom_point()
+
+life_expectancy_diff_ages_long <- pivot_longer(life_expectancy_diff_ages, cols = c(LifeExpectancy0, LifeExpectancy10, LifeExpectancy25, LifeExpectancy45, LifeExpectancy65, LifeExpectancy80))
+
+orig_graph <- ggplot(data = life_expectancy_diff_ages_long, aes(x = Year, y= value)) +
+  geom_point(aes(color= factor(name)))
+  
+life_expectancy_diff_ages_long_means <- life_expectancy_diff_ages_long %>%
+  filter(is.na(value ) == FALSE) %>%
+  group_by(Year, name) %>%
+  summarise(mean_expect = mean(value)) 
+
+life_expectancy_diff_ages_long_means$name[life_expectancy_diff_ages_long_means$name == "LifeExpectancy0"] <- 0
+life_expectancy_diff_ages_long_means$name[life_expectancy_diff_ages_long_means$name == "LifeExpectancy10"] <- 10
+life_expectancy_diff_ages_long_means$name[life_expectancy_diff_ages_long_means$name == "LifeExpectancy25"] <- 25
+life_expectancy_diff_ages_long_means$name[life_expectancy_diff_ages_long_means$name == "LifeExpectancy45"] <- 45
+life_expectancy_diff_ages_long_means$name[life_expectancy_diff_ages_long_means$name == "LifeExpectancy65"] <- 65
+life_expectancy_diff_ages_long_means$name[life_expectancy_diff_ages_long_means$name == "LifeExpectancy80"] <- 80
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+basegraph <- ggplot(data = life_expectancy_diff_ages_long_means, aes(x = Year, y= mean_expect)) +
+  geom_point(aes(color= factor(name)), alpha=0.6)
+  
+life_exp_per_year_ages <- basegraph +
+  ggthemes::theme_solarized() +
+  ggtitle("Mean Worldwide Life Expectancy Per Year at Various Ages") +
+  theme(plot.title = element_text(size=12, face="bold", hjust = 0.5, margin = margin(10, 0, 10, 0), color = "black")) +
+  labs(x = "Year", y = "Mean Life Expectancy (in Years)") +
+  ylim(c(0, 100)) +
+  scale_color_manual("Life Expectancy \nAt Age:", values = c("#551f56", "#cd8902", "#709653", "#c42455", "#808080", "#123976")) + 
+  theme(legend.title = element_text(colour = "black"), legend.text = element_text(color = 'black')) +
+  theme(axis.title.x = element_text(colour = "black", margin = margin(t=10, r=0, b=0, l=0)),
+          axis.title.y = element_text(colour = "black", margin = margin(t=0, r=10, b=0, l=0)))
+
+life_exp_per_year_ages
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+topyears_graph <- ggplot(data = topyears, aes(x = Year, y= mean_life_expectancy)) +
+  geom_point() +
+  ggthemes::theme_solarized() +
+  ggtitle("Mean Worldwide Life Expectancy Per Year") +
+  theme(plot.title = element_text(size=15, color = "black", face="bold", hjust = 0.5, margin = margin(10, 0, 10, 0))) +
+  labs(x = "Year", y = "Mean Life Expectancy (in Years)")  +
+  scale_y_continuous( labels = label_number(accuracy = 1)) + 
+  theme(axis.title.x = element_text(colour = "black", margin = margin(t=10, r=0, b=0, l=0)),
+          axis.title.y = element_text(colour = "black", margin = margin(t=0, r=10, b=0, l=0)))
+
+topyears_graph
+```
+
+```{r}
+life_expectancy_female_male %>% 
+  arrange(desc(LifeExpectancyDiffFM))
 ```
 
